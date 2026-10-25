@@ -1,149 +1,85 @@
-# banrepstats: artículo IEEE y material de reproducción
+# banrepstats: An R Package for Programmatic Access to Colombian Central Bank Economic Data
 
-Este repositorio contiene el artículo de conferencia IEEE
-**"banrepstats: An R Package for Programmatic Access to Colombian Central
-Bank Economic Data"** y todo lo necesario para reproducir sus resultados:
-los scripts de validación, los datos congelados y las salidas que aparecen
-en las tablas y figuras.
-
-El paquete en sí vive en su propio repositorio:
-<https://github.com/fersalme/banrepstats>. Este repositorio es independiente
-del paquete. El artículo describe la versión **1.1.0**.
+Artículo de conferencia IEEE y materiales de replicación. Este repositorio es
+independiente del paquete, que está en
+<https://github.com/fersalme/banrepstats> (versión 1.1.0, licencia MIT).
 
 **Autores:** Fernando Salcedo-Mejía (Universidad Tecnológica de Bolívar),
 Antonio Perez-Torres (Universidad Politécnica Salesiana) y Cesar
 Villoria-Núñez (Universidad Tecnológica de Bolívar).
 
-## De qué trata el artículo
+## Resumen
 
-El Banco de la República publica más de 250 series macroeconómicas en su
-portal SUAMECA, pero no ofrece una API pública documentada. `banrepstats`
-consume la API JSON interna del portal para descubrir el catálogo de
-indicadores y descargar cualquiera de ellos como un `data.table` ordenado.
-El artículo:
+El Banco de la República publica 61 indicadores (256 series) en su portal
+SUAMECA, pero no ofrece una API pública documentada. `banrepstats` consume
+la API JSON interna del portal para buscar en el catálogo y descargar
+cualquier indicador como un `data.table` ordenado, listo para `tsibble` y
+`fable`. El artículo:
 
-- describe la arquitectura del paquete (`catalogo_banrep()`,
-  `search_banrep()`, `banrep_data()`, `series_plot()` y el catálogo
-  `banrep_cache`);
-- documenta los obstáculos de usar una API no documentada: filtrado
-  silencioso de peticiones sin `Referer`, fechas codificadas en hora de
-  Bogotá, códigos de indicador no únicos y una cadena de certificados TLS
+- describe el diseño del paquete: `catalogo_banrep()`, `search_banrep()`,
+  `banrep_data()`, `series_plot()` y el catálogo incluido `banrep_cache`;
+- documenta cuatro problemas de usar una API no documentada: el filtrado
+  silencioso de peticiones sin `Referer`, las fechas en hora de Bogotá, los
+  códigos de indicador no únicos y una cadena de certificados TLS
   incompleta;
-- valida la cobertura y la exactitud del paquete contra el portal oficial;
-- ilustra la integración con `tsibble`/`fable` pronosticando la tasa de
-  desempleo y el crecimiento del PIB con ARIMA, ETS, NNETAR y Prophet.
+- valida la cobertura del paquete y su concordancia con las exportaciones
+  oficiales del portal;
+- muestra la integración con herramientas de pronóstico usando la tasa de
+  desempleo y el crecimiento del PIB.
 
-## Estructura
+## Resultados principales (24 de octubre de 2026)
 
-```
-IEEE_Conference_Template/   Fuente LaTeX del artículo, clase IEEEtran, PDF y figuras
-suameca_data/               12 CSV exportados a mano desde el portal SUAMECA
-validation/
-  validate_coverage.R       Descarga todo el catálogo y verifica su integridad
-  validate_official.R       Compara banrep_data() con las exportaciones oficiales
-  results/                  Resultados de ambas validaciones
-paper/
-  forecast_eval.R           Reproduce la Tabla III y las Figs. 1–3
-  data/                     Datos congelados usados en el artículo
-  results/                  Métricas, muestras, versiones de paquetes y sessionInfo
-```
+- **Cobertura:** se descargaron los 61 indicadores del catálogo, con
+  256 series y 460.461 observaciones en cinco frecuencias. No hay fechas
+  duplicadas.
+- **Concordancia con SUAMECA:** se compararon 42 series de 12 indicadores
+  con los CSV exportados del portal, y coinciden en el 100 % de las
+  38.858 observaciones, con las mismas fechas en ambas fuentes.
+- **Pruebas del paquete:** 32 tests (26 offline y 6 contra el servicio en
+  vivo) que cubren el 94 % del código.
+- **Pronóstico fuera de muestra** (RMSE en puntos porcentuales; los últimos
+  10 periodos se reservan para la prueba):
 
-## Requisitos
+  | Indicador | ARIMA | ETS | NNETAR | Prophet |
+  |---|---|---|---|---|
+  | Desempleo (mensual) | **0,56** | 1,06 | 1,23 | 0,81 |
+  | Crecimiento del PIB (trimestral) | 2,07 | 1,79 | 4,60 | **1,02** |
 
-- R ≥ 4.5 (los resultados se obtuvieron con R 4.5.2).
-- El paquete `banrepstats`:
+  El ejercicio ilustra el flujo de trabajo y no pretende elegir el mejor
+  modelo.
 
-  ```r
-  remotes::install_github("fersalme/banrepstats")
-  ```
+## Contenido
 
-- Para los pronósticos: `data.table`, `dplyr`, `tsibble`, `fable`,
-  `fabletools`, `fable.prophet` (y `prophet`) y `ggplot2`. Las versiones
-  exactas están en [paper/results/versions.csv](paper/results/versions.csv).
-- Una distribución de LaTeX para compilar el artículo.
-
-## Cómo reproducir los resultados
-
-Todos los scripts usan rutas relativas y deben ejecutarse desde la raíz de
-este repositorio.
-
-### Validación
-
-```sh
-Rscript validation/validate_coverage.R
-Rscript validation/validate_official.R
-```
-
-- `validate_coverage.R` descarga cada indicador del catálogo en vivo y
-  registra si la descarga funcionó, cuántas series y observaciones
-  devolvió, si hay fechas duplicadas y si todas las fechas son días
-  enteros. Termina con error si algún indicador falla, de modo que también
-  sirve como monitor programado de la API.
-- `validate_official.R` compara, serie por serie y fecha por fecha, la
-  salida de `banrep_data()` con los CSV de [suameca_data/](suameca_data/).
-  Un valor coincide cuando difiere a lo sumo en el redondeo de la
-  exportación (media unidad del último decimal mostrado).
-
-Ambos scripts consultan la API en vivo, así que si se ejecutan hoy pueden
-dar cifras distintas a las del artículo: el Banco revisa y amplía sus
-series. Los resultados publicados están en
-[validation/results/](validation/results/).
-
-### Pronósticos
-
-```sh
-Rscript paper/forecast_eval.R            # usa los datos congelados de paper/data/
-Rscript paper/forecast_eval.R --refresh  # vuelve a descargar los datos
-```
-
-Sin `--refresh`, el script usa los datos de [paper/data/](paper/data/)
-(descargados el 2026-10-24) y solo descarga si falta alguno. La semilla
-(`20261024`) se fija antes de cada bloque de modelos. El script escribe:
-
-- `paper/results/accuracy.csv` y `accuracy_rows.tex`: métricas fuera de
-  muestra (Tabla III);
-- `paper/results/samples.csv`: ventanas de entrenamiento y prueba;
-- `paper/results/versions.csv` y `sessionInfo.txt`: registro del entorno;
-- `IEEE_Conference_Template/banrepstats-*.png`: las figuras del artículo.
-
-### Compilar el artículo
-
-```sh
-cd IEEE_Conference_Template
-pdflatex conference_101719.tex
-pdflatex conference_101719.tex
-```
-
-La bibliografía está incluida en el `.tex`, así que no hace falta BibTeX.
-
-## Resultados principales (2026-10-24)
-
-| Validación | Resultado |
+| Ruta | Contenido |
 |---|---|
-| Cobertura | 61 de 61 indicadores descargados: 256 series y 460.461 observaciones en cinco frecuencias, sin fechas duplicadas |
-| Exportaciones oficiales | 12 indicadores y 42 series comparados: las 38.858 observaciones coinciden (100 %), con las mismas fechas en ambas fuentes |
+| [IEEE_Conference_Template/](IEEE_Conference_Template/) | Fuente LaTeX, PDF y figuras del artículo |
+| [validation/](validation/) | Scripts de cobertura y de concordancia, con sus resultados |
+| [suameca_data/](suameca_data/) | 12 CSV exportados a mano desde el portal SUAMECA |
+| [paper/](paper/) | Script de pronósticos (Tabla III y Figs. 1–3), datos congelados y resultados |
 
-Error de pronóstico fuera de muestra con 10 periodos reservados (RMSE en
-puntos porcentuales):
+## Reproducción
 
-| Indicador | ARIMA | ETS | NNETAR | Prophet |
-|---|---|---|---|---|
-| Desempleo (mensual) | **0,56** | 1,06 | 1,23 | 0,81 |
-| Crecimiento del PIB (trimestral) | 2,07 | 1,79 | 4,60 | **1,02** |
+Requiere R ≥ 4.5 y `remotes::install_github("fersalme/banrepstats")`. Los
+pronósticos necesitan además `tsibble`, `fable`, `fabletools`,
+`fable.prophet`, `dplyr` y `ggplot2`. Los scripts se ejecutan desde la raíz
+del repositorio:
 
-Estos pronósticos ilustran el flujo de trabajo; no buscan establecer qué
-modelo es mejor. El artículo discute por qué el MAPE no es fiable para el
-PIB y el probable sobreajuste de NNETAR.
+```sh
+Rscript validation/validate_coverage.R   # descarga todo el catálogo
+Rscript validation/validate_official.R   # compara con suameca_data/
+Rscript paper/forecast_eval.R            # usa los datos congelados (--refresh los vuelve a descargar)
+```
 
-## Fuentes de datos
+Los scripts de validación consultan la API en vivo, así que sus cifras
+pueden cambiar a medida que el Banco revisa sus series. Los pronósticos
+usan los datos congelados el 24 de octubre de 2026 y la semilla 20261024.
+Los resultados se generaron con R 4.5.2 y banrepstats 0.1.1, cuyo código no
+cambia en la 1.1.0. Las versiones de todos los paquetes usados están en
+[paper/results/versions.csv](paper/results/versions.csv).
 
-Los datos provienen del portal SUAMECA del Banco de la República
-(<https://suameca.banrep.gov.co/estadisticas-economicas/>). Los CSV de
-[suameca_data/](suameca_data/) se exportaron manualmente desde ese portal:
-tienen una columna de fecha (fin de periodo, `AAAA/MM/DD`) y una columna
-por serie, usan coma decimal y dejan en blanco los valores faltantes.
+Para compilar el artículo, ejecuta `pdflatex conference_101719.tex` dos
+veces dentro de `IEEE_Conference_Template/`.
 
-## Licencia
-
-`banrepstats` se distribuye bajo la licencia MIT. Los datos son propiedad
-del Banco de la República y están sujetos a sus condiciones de uso.
+Los datos son del Banco de la República
+(<https://suameca.banrep.gov.co/estadisticas-economicas/>) y están sujetos
+a sus condiciones de uso.
